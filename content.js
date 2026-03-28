@@ -1,6 +1,14 @@
 // 監看 DOM，替 <img> 加上 Download 按鈕
 const ADDED = new WeakSet();
 
+function hasValidExtensionContext() {
+  try {
+    return Boolean(chrome?.runtime?.id);
+  } catch {
+    return false;
+  }
+}
+
 function getHighestResImageUrl(img) {
   // 檢查 srcset 屬性，取最高解析度
   const srcset = img.srcset || img.getAttribute('data-srcset');
@@ -29,6 +37,22 @@ function getHighestResImageUrl(img) {
   return img.getAttribute('data-src') || img.currentSrc || img.src;
 }
 
+function hasUsableImageSource(img) {
+  return Boolean(
+    img.src ||
+    img.currentSrc ||
+    img.srcset ||
+    img.getAttribute('data-src') ||
+    img.getAttribute('data-srcset')
+  );
+}
+
+function isInsideVideoPost(img) {
+  const container = img.closest('article, [role="presentation"], section, main, div');
+  if (!container) return false;
+  return Boolean(container.querySelector('video'));
+}
+
 function makeBtn(el) {
   const btn = document.createElement('button');
   btn.textContent = 'Download';
@@ -45,6 +69,11 @@ function makeBtn(el) {
   btn.style.fontSize = '12px';
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
+    if (!hasValidExtensionContext()) {
+      showToast('擴充功能已更新，請重新整理頁面後再下載。');
+      return;
+    }
+
     let url = getHighestResImageUrl(el);
     if (!url) {
       url = el.currentSrc || el.src;
@@ -57,13 +86,22 @@ function makeBtn(el) {
       return;
     }
 
-    chrome.runtime.sendMessage({ type: 'DOWNLOAD', url, suggestName: name }, (res) => {
-      if (!res?.ok) {
-        showToast('下載失敗：' + (res?.error || '未知錯誤'));
-      } else {
-        showToast('開始下載…');
-      }
-    });
+    try {
+      chrome.runtime.sendMessage({ type: 'DOWNLOAD', url, suggestName: name }, (res) => {
+        if (chrome.runtime.lastError) {
+          showToast('下載失敗：' + chrome.runtime.lastError.message);
+          return;
+        }
+
+        if (!res?.ok) {
+          showToast('下載失敗：' + (res?.error || '未知錯誤'));
+        } else {
+          showToast('開始下載…');
+        }
+      });
+    } catch (_error) {
+      showToast('擴充功能已更新，請重新整理頁面後再下載。');
+    }
   });
   return btn;
 }
@@ -83,15 +121,24 @@ function decorate(el) {
 }
 
 function scan() {
-  document.querySelectorAll('img[src]').forEach((el) => {
+  if (!hasValidExtensionContext()) return;
+  document.querySelectorAll('img').forEach((el) => {
+    if (!hasUsableImageSource(el)) return;
     // 過濾頭像/圖示，小於一定尺寸的不加
     const rect = el.getBoundingClientRect();
     if (rect.width < 120 || rect.height < 120) return;
+    if (isInsideVideoPost(el)) return;
     decorate(el);
   });
 }
 
-const mo = new MutationObserver(() => scan());
+const mo = new MutationObserver(() => {
+  if (!hasValidExtensionContext()) {
+    mo.disconnect();
+    return;
+  }
+  scan();
+});
 mo.observe(document.documentElement, { childList: true, subtree: true });
 scan();
 
@@ -114,6 +161,8 @@ function showToast(text) {
   setTimeout(() => t.remove(), 1800);
 }
 
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg?.type === 'TOAST' && msg.text) showToast(msg.text);
-});
+if (hasValidExtensionContext()) {
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg?.type === 'TOAST' && msg.text) showToast(msg.text);
+  });
+}
