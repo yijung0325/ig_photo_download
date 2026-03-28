@@ -1,6 +1,34 @@
 // 監看 DOM，替 <img> 與 <video> 加上 Download 按鈕
 const ADDED = new WeakSet();
 
+function getHighestResImageUrl(img) {
+  // 檢查 srcset 屬性，取最高解析度
+  const srcset = img.srcset || img.getAttribute('data-srcset');
+  if (srcset) {
+    const sources = srcset.split(',').map(s => s.trim());
+    let maxWidth = 0;
+    let bestUrl = null;
+    sources.forEach(source => {
+      const parts = source.split(' ');
+      if (parts.length >= 2) {
+        const url = parts[0];
+        const widthMatch = parts[1].match(/(\d+)w/);
+        if (widthMatch) {
+          const width = parseInt(widthMatch[1]);
+          if (width > maxWidth) {
+            maxWidth = width;
+            bestUrl = url;
+          }
+        }
+      }
+    });
+    if (bestUrl) return bestUrl;
+  }
+  
+  // 如果沒有 srcset，嘗試其他屬性
+  return img.getAttribute('data-src') || img.currentSrc || img.src;
+}
+
 function makeBtn(el) {
   const btn = document.createElement('button');
   btn.textContent = 'Download';
@@ -21,7 +49,11 @@ function makeBtn(el) {
     let name = 'ig-media';
 
     if (el.tagName === 'IMG') {
-      url = el.currentSrc || el.src;
+      // 優先嘗試獲取最高解析度
+      url = getHighestResImageUrl(el);
+      if (!url) {
+        url = el.currentSrc || el.src;
+      }
       const u = (url || '').split('?')[0];
       name = u.endsWith('.webp') ? 'photo.webp' : (u.split('/').pop() || 'photo.jpg');
     } else if (el.tagName === 'VIDEO') {
