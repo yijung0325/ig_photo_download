@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "IG Downloader (Simple)",
   "version": "1.1",
-  "description": "在 Instagram 圖片/影片上加入下載按鈕與右鍵下載。",
+  "description": "在 Instagram 圖片上加入下載按鈕與右鍵下載。",
   "permissions": [
     "downloads",
     "activeTab",

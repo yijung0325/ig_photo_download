@@ -1,9 +1,9 @@
-// 建立右鍵選單（只在圖片/影片上出現）
+// 建立右鍵選單（只在圖片上出現）
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "igdl",
-    title: "下載這個 IG 媒體",
-    contexts: ["image", "video"]
+    title: "下載這張 IG 圖片",
+    contexts: ["image"]
   });
 });
 
@@ -21,9 +21,8 @@ function downloadByUrl(url, suggestName) {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId !== "igdl") return;
   const url = info.srcUrl || info.linkUrl;
-  if (!url || url.startsWith("blob:")) {
-    // 右鍵在使用 blob: 的情況下，提示改用 Network 抓取
-    chrome.tabs.sendMessage(tab.id, { type: "TOAST", text: "此媒體為 blob/串流，請改用開發者工具 Network 抓 mp4/jpg。" });
+  if (!url) {
+    chrome.tabs.sendMessage(tab.id, { type: "TOAST", text: "找不到圖片來源。" });
     return;
   }
   const res = await downloadByUrl(url);

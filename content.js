@@ -1,4 +1,4 @@
-// 監看 DOM，替 <img> 與 <video> 加上 Download 按鈕
+// 監看 DOM，替 <img> 加上 Download 按鈕
 const ADDED = new WeakSet();
 
 function getHighestResImageUrl(img) {
@@ -45,29 +45,15 @@ function makeBtn(el) {
   btn.style.fontSize = '12px';
   btn.addEventListener('click', async (e) => {
     e.stopPropagation();
-    let url = null;
-    let name = 'ig-media';
-
-    if (el.tagName === 'IMG') {
-      // 優先嘗試獲取最高解析度
-      url = getHighestResImageUrl(el);
-      if (!url) {
-        url = el.currentSrc || el.src;
-      }
-      const u = (url || '').split('?')[0];
-      name = u.endsWith('.webp') ? 'photo.webp' : (u.split('/').pop() || 'photo.jpg');
-    } else if (el.tagName === 'VIDEO') {
+    let url = getHighestResImageUrl(el);
+    if (!url) {
       url = el.currentSrc || el.src;
-      // 有些 <video> 會有 <source>
-      if ((!url || url.startsWith('blob:')) && el.querySelector('source')) {
-        url = el.querySelector('source').src || url;
-      }
-      const u = (url || '').split('?')[0];
-      name = (u && u.includes('.')) ? u.split('/').pop() : 'video.mp4';
     }
+    const u = (url || '').split('?')[0];
+    const name = u.endsWith('.webp') ? 'photo.webp' : (u.split('/').pop() || 'photo.jpg');
 
-    if (!url || url.startsWith('blob:')) {
-      showToast('此媒體為 blob/串流，請改用開發者工具 Network 抓取（篩 mp4/jpg）。');
+    if (!url) {
+      showToast('找不到圖片來源。');
       return;
     }
 
@@ -97,7 +83,7 @@ function decorate(el) {
 }
 
 function scan() {
-  document.querySelectorAll('img[src], video').forEach((el) => {
+  document.querySelectorAll('img[src]').forEach((el) => {
     // 過濾頭像/圖示，小於一定尺寸的不加
     const rect = el.getBoundingClientRect();
     if (rect.width < 120 || rect.height < 120) return;
