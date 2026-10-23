@@ -58,7 +58,7 @@ function makeBtn(el) {
   btn.textContent = 'Download';
   btn.style.position = 'absolute';
   btn.style.top = '8px';
-  btn.style.right = '8px';
+  btn.style.left = '8px';
   btn.style.zIndex = 9999;
   btn.style.padding = '6px 10px';
   btn.style.borderRadius = '10px';
